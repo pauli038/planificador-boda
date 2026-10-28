@@ -3,14 +3,19 @@ export type Expense = { id: string; concepto: string; categoria: string; estimad
 export type Task = { id: string; titulo: string; etapa: string; fecha: string; responsable: string; hecho: boolean; notas: string; creado?: number };
 export type Vendor = { id: string; nombre: string; servicio: string; estado: VendorState; contacto: string; telefono: string; email: string; costo: number; notas: string; creado?: number };
 export type Table = { id: string; nombre: string; capacidad: number; notas: string; creado?: number };
-export type Config = { nombres?: string; fecha?: string; hora?: string; lugar?: string; presupuesto?: number };
+export type ScheduleItem = { id: string; hora: string; titulo: string; lugar: string; responsable: string; notas: string; creado?: number };
+export type HoneyItem = { id: string; tipo: string; titulo: string; fecha: string; costo: number; reservado: boolean; confirmacion: string; notas: string; creado?: number };
+export type Config = {
+  nombres?: string; fecha?: string; hora?: string; lugar?: string; presupuesto?: number;
+  lunaDestino?: string; lunaSalida?: string; lunaRegreso?: string; lunaPresupuesto?: number;
+};
 
 export type Rsvp = "pendiente" | "si" | "no";
 export type VendorState = "cotizando" | "apartado" | "contratado" | "descartado";
 
-export type Data = { config: Config; guests: Guest[]; budget: Expense[]; tasks: Task[]; vendors: Vendor[]; tables: Table[] };
-export type Col = "guests" | "budget" | "tasks" | "vendors" | "tables";
-export type Row = Guest | Expense | Task | Vendor | Table;
+export type Data = { config: Config; guests: Guest[]; budget: Expense[]; tasks: Task[]; vendors: Vendor[]; tables: Table[]; schedule: ScheduleItem[]; honeymoon: HoneyItem[] };
+export type Col = "guests" | "budget" | "tasks" | "vendors" | "tables" | "schedule" | "honeymoon";
+export type Row = Guest | Expense | Task | Vendor | Table | ScheduleItem | HoneyItem;
 
 export const STAGES = ["12+ meses antes", "9–12 meses antes", "6–9 meses antes", "3–6 meses antes", "1–3 meses antes", "Último mes", "Semana de la boda", "Después de la boda"];
 export const BUDGET_CATS = ["Recepción y banquete", "Ceremonia", "Vestido y atuendo", "Fotografía y video", "Música", "Flores y decoración", "Invitaciones", "Anillos", "Pastel", "Bebidas", "Transporte", "Belleza", "Luna de miel", "Otros"];
@@ -84,10 +89,34 @@ export function taskSort(a: Task, b: Task) {
   );
 }
 
-export type RowInput = Omit<Guest, "id"> | Omit<Expense, "id"> | Omit<Task, "id"> | Omit<Vendor, "id"> | Omit<Table, "id">;
+export type RowInput = Omit<Guest, "id"> | Omit<Expense, "id"> | Omit<Task, "id"> | Omit<Vendor, "id"> | Omit<Table, "id"> | Omit<ScheduleItem, "id"> | Omit<HoneyItem, "id">;
 
 /** Personas que ocupa una invitación (titular + acompañantes). */
 export const seats = (g: Guest) => 1 + (num(g.acomp) || 0);
 
 /** Número de mesa natural para ordenar "Mesa 2" antes que "Mesa 10". */
 export const tableSort = (a: Table, b: Table) => String(a.nombre).localeCompare(String(b.nombre), "es", { numeric: true });
+
+export const HONEY_TYPES = ["Vuelo", "Hospedaje", "Transporte", "Actividad", "Documentos", "Maleta", "Otro"];
+
+export const SUGGESTED_HONEY: [string, string][] = [
+  ["Documentos", "Revisar vigencia de pasaportes"], ["Documentos", "Tramitar visa (si aplica)"], ["Documentos", "Contratar seguro de viaje"],
+  ["Vuelo", "Comprar vuelo de ida"], ["Vuelo", "Comprar vuelo de regreso"], ["Hospedaje", "Reservar hotel"],
+  ["Transporte", "Traslado aeropuerto – hotel"], ["Actividad", "Cena romántica"], ["Actividad", "Tour o excursión"],
+  ["Maleta", "Ropa de playa / clima"], ["Maleta", "Cargadores y adaptador de enchufe"], ["Maleta", "Medicinas y bloqueador"],
+  ["Otro", "Avisar al banco del viaje"], ["Otro", "Cambiar moneda"],
+];
+
+export const SUGGESTED_SCHEDULE: [string, string, string][] = [
+  ["11:00", "Peinado y maquillaje", "Casa de la novia"], ["14:00", "Sesión de fotos de preparación", "Casa de la novia"],
+  ["16:00", "Ceremonia", ""], ["17:00", "Fotos con familia y padrinos", ""], ["18:00", "Coctel de bienvenida", "Salón"],
+  ["19:00", "Entrada de los novios", "Salón"], ["19:15", "Primer baile", "Salón"], ["19:30", "Brindis y palabras", "Salón"],
+  ["20:00", "Cena", "Salón"], ["21:30", "Corte del pastel", "Salón"], ["22:00", "Fiesta", "Salón"],
+  ["23:30", "Lanzamiento del ramo", "Salón"], ["01:00", "Salida de los novios", ""],
+];
+
+/** Orden del programa: lo de la madrugada (antes de las 6) va al final, porque es la misma noche. */
+export const scheduleSort = (a: ScheduleItem, b: ScheduleItem) => {
+  const k = (h: string) => (h && h < "06:00" ? "z" + h : h || "zz");
+  return k(a.hora).localeCompare(k(b.hora)) || String(a.titulo).localeCompare(String(b.titulo), "es");
+};

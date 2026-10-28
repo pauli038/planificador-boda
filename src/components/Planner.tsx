@@ -2,25 +2,27 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Icon, type IconName } from "./Icons";
-import { ItemForm, SettingsForm } from "./Forms";
+import { ItemForm, SettingsForm, TripForm } from "./Forms";
+import { HoneymoonView, ScheduleView } from "./Extras";
 import { AssignSheet, BulkTablesSheet, SeatingView, occupancy } from "./Seating";
 import {
-  RSVP, STAGES, SUGGESTED_TASKS, VSTATE,
+  RSVP, STAGES, SUGGESTED_HONEY, SUGGESTED_SCHEDULE, SUGGESTED_TASKS, VSTATE,
   budgetStats, daysUntil, expenseTotal, fmtDate, guestStats, money, num, seats, taskSort, taskStats, todayISO, uid,
-  type Col, type Config, type Data, type Expense, type Guest, type Row, type RowInput, type Rsvp, type Table, type Task, type Vendor, type VendorState,
+  type Col, type Config, type Data, type Expense, type Guest, type HoneyItem, type ScheduleItem, type Row, type RowInput, type Rsvp, type Table, type Task, type Vendor, type VendorState,
 } from "@/lib/catalog";
 
-type Tab = "inicio" | "invitados" | "mesas" | "presupuesto" | "tareas" | "proveedores";
-// [clave, nombre, nombre corto para la barra del teléfono, ícono]
-const TABS: [Tab, string, string, IconName][] = [
-  ["inicio", "Inicio", "Inicio", "home"], ["invitados", "Invitados", "Invitados", "guests"], ["mesas", "Mesas", "Mesas", "tables"],
-  ["presupuesto", "Presupuesto", "Gastos", "budget"], ["tareas", "Tareas", "Tareas", "tasks"], ["proveedores", "Proveedores", "Proveed.", "vendors"],
+type Tab = "inicio" | "invitados" | "mesas" | "presupuesto" | "tareas" | "proveedores" | "programa" | "luna";
+const TABS: [Tab, string, IconName][] = [
+  ["inicio", "Inicio", "home"], ["invitados", "Invitados", "guests"], ["mesas", "Mesas", "tables"], ["tareas", "Tareas", "tasks"],
+  ["presupuesto", "Presupuesto", "budget"], ["proveedores", "Proveedores", "vendors"], ["programa", "Programa del día", "clock"], ["luna", "Luna de miel", "plane"],
 ];
-const TAB_COL: Partial<Record<Tab, Col>> = { invitados: "guests", mesas: "tables", presupuesto: "budget", tareas: "tasks", proveedores: "vendors" };
-const EMPTY: Data = { config: {}, guests: [], budget: [], tasks: [], vendors: [], tables: [] };
+// En el teléfono caben 4 pestañas + "Más"; el resto se abre desde ese menú
+const MOBILE_TABS = 4;
+const TAB_COL: Partial<Record<Tab, Col>> = { invitados: "guests", mesas: "tables", programa: "schedule", luna: "honeymoon", presupuesto: "budget", tareas: "tasks", proveedores: "vendors" };
+const EMPTY: Data = { config: {}, guests: [], budget: [], tasks: [], vendors: [], tables: [], schedule: [], honeymoon: [] };
 const POLL_MS = 8000;
 
-type Sheet = { kind: "item"; col: Col; id?: string } | { kind: "settings" } | { kind: "assign"; id: string } | { kind: "bulkTables" } | null;
+type Sheet = { kind: "item"; col: Col; id?: string } | { kind: "settings" } | { kind: "assign"; id: string } | { kind: "bulkTables" } | { kind: "trip" } | null;
 
 type Theme = "system" | "light" | "dark";
 const THEMES: Record<Theme, [string, IconName, Theme]> = {
@@ -47,6 +49,7 @@ export default function Planner() {
   const [tFilter, setTFilter] = useState("pendientes");
   const [vFilter, setVFilter] = useState("todos");
   const [theme, setTheme] = useState<Theme>("system");
+  const [moreOpen, setMoreOpen] = useState(false);
   const pending = useRef(0);
 
   useEffect(() => {
@@ -85,8 +88,10 @@ export default function Planner() {
     refresh();
     const iv = setInterval(() => document.visibilityState === "visible" && refresh(), POLL_MS);
     const onVis = () => document.visibilityState === "visible" && refresh();
+    const onHash = () => { const k = window.location.hash.slice(1); if (TABS.some(([t]) => t === k)) setTab(k as Tab); };
     document.addEventListener("visibilitychange", onVis);
-    return () => { clearInterval(iv); document.removeEventListener("visibilitychange", onVis); };
+    window.addEventListener("hashchange", onHash);
+    return () => { clearInterval(iv); document.removeEventListener("visibilitychange", onVis); window.removeEventListener("hashchange", onHash); };
   }, [refresh]);
 
   const send = useCallback(async (url: string, method: string, body?: unknown) => {
@@ -142,6 +147,23 @@ export default function Planner() {
     toast("Checklist cargado");
   }
 
+  async function seedSchedule() {
+    const rows: ScheduleItem[] = SUGGESTED_SCHEDULE.map(([hora, titulo, lugar], i) => ({ id: uid() + i, hora, titulo, lugar, responsable: "", notas: "", creado: Date.now() + i }));
+    await saveMany("schedule", rows);
+    toast("Programa cargado");
+  }
+
+  async function seedHoney() {
+    const rows: HoneyItem[] = SUGGESTED_HONEY.map(([tipo, titulo], i) => ({ id: uid() + i, tipo, titulo, fecha: "", costo: 0, reservado: false, confirmacion: "", notas: "", creado: Date.now() + i }));
+    await saveMany("honeymoon", rows);
+    toast("Lista cargada");
+  }
+
+  function toggleHoney(x: HoneyItem) {
+    const { id, ...rest } = x;
+    saveItem("honeymoon", id, { ...rest, reservado: !x.reservado });
+  }
+
   function toggleTask(t: Task) {
     const { id, ...rest } = t;
     saveItem("tasks", id, { ...rest, hecho: !t.hecho });
@@ -154,6 +176,7 @@ export default function Planner() {
 
   function go(t: Tab) {
     setTab(t);
+    setMoreOpen(false);
     history.replaceState(null, "", "#" + t);
     window.scrollTo(0, 0);
   }
@@ -260,6 +283,12 @@ export default function Planner() {
             {tables.length
               ? `${tables.length} ${tables.length === 1 ? "mesa" : "mesas"} · ${seatedCount} personas sentadas · ${unseatedCount} sin mesa`
               : "Aún no hay mesas. Créalas en la sección Mesas."}
+          </p>
+          <div className="spread" style={{ marginTop: 6 }}><h3>Luna de miel</h3><button className="chip" onClick={() => go("luna")}>Ver viaje</button></div>
+          <p className="note" style={{ margin: 0 }}>
+            {config.lunaDestino
+              ? `${config.lunaDestino}${config.lunaSalida ? ` · sale ${fmtDate(config.lunaSalida, { day: "numeric", month: "short" })}` : ""} · ${data.honeymoon.filter((x) => x.reservado).length}/${data.honeymoon.length} listo`
+              : "Aún no tienen destino. Agrégalo en la sección Luna de miel."}
           </p>
         </section>
         </div>
@@ -443,7 +472,22 @@ export default function Planner() {
     if (col === "tables") saveMany("guests", guests.filter((g) => g.mesa === id).map((g) => ({ ...g, mesa: "" })));
   }
 
-  const views: Record<Tab, () => React.ReactNode> = { inicio: vInicio, invitados: vInvitados, mesas: vMesas, presupuesto: vPresupuesto, tareas: vTareas, proveedores: vProveedores };
+  const vPrograma = () => (
+    <ScheduleView items={data.schedule} config={config} onEdit={(id) => openItem("schedule", id)} onAdd={() => openItem("schedule")} onSeed={seedSchedule} />
+  );
+  const vLuna = () => (
+    <HoneymoonView
+      items={data.honeymoon}
+      config={config}
+      onEdit={(id) => openItem("honeymoon", id)}
+      onAdd={() => openItem("honeymoon")}
+      onSeed={seedHoney}
+      onToggle={toggleHoney}
+      onTrip={() => setSheet({ kind: "trip" })}
+    />
+  );
+
+  const views: Record<Tab, () => React.ReactNode> = { programa: vPrograma, luna: vLuna, inicio: vInicio, invitados: vInvitados, mesas: vMesas, presupuesto: vPresupuesto, tareas: vTareas, proveedores: vProveedores };
   const col = TAB_COL[tab];
   const sub = d === null ? "Configura la fecha para ver la cuenta regresiva" : d > 0 ? `Faltan ${d} ${d === 1 ? "día" : "días"} · ${fmtDate(config.fecha)}` : d === 0 ? "¡Hoy es el día!" : `Casados el ${fmtDate(config.fecha)}`;
   const editing = sheet?.kind === "item" && sheet.id ? (data[sheet.col] as Row[]).find((x) => x.id === sheet.id) : undefined;
@@ -470,13 +514,27 @@ export default function Planner() {
       <div className="shell">
         <nav className="tabs" aria-label="Secciones">
           <div className="in">
-            {TABS.map(([k, l, short, i]) => (
-              <button key={k} onClick={() => go(k)} aria-current={k === tab ? "page" : undefined} aria-label={l}>
-                <Icon name={i} /><span className="long">{l}</span><span className="short" aria-hidden="true">{short}</span>
+            {TABS.map(([k, l, i], idx) => (
+              <button key={k} className={idx >= MOBILE_TABS ? "desktop-tab" : ""} onClick={() => go(k)} aria-current={k === tab ? "page" : undefined}>
+                <Icon name={i} /><span>{l}</span>
               </button>
             ))}
+            <button className="mobile-tab" onClick={() => setMoreOpen((o) => !o)} aria-expanded={moreOpen} aria-current={TABS.findIndex(([k]) => k === tab) >= MOBILE_TABS ? "page" : undefined}>
+              <Icon name="more" /><span>Más</span>
+            </button>
           </div>
         </nav>
+        {moreOpen && (
+          <div className="more-scrim" onClick={() => setMoreOpen(false)}>
+            <div className="more-menu" role="menu" onClick={(e) => e.stopPropagation()}>
+              {TABS.slice(MOBILE_TABS).map(([k, l, i]) => (
+                <button key={k} role="menuitem" onClick={() => go(k)} aria-current={k === tab ? "page" : undefined}>
+                  <Icon name={i} /><span>{l}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         <main className="content">
           <div className="view">
@@ -515,6 +573,9 @@ export default function Planner() {
           onClose={() => setSheet(null)}
           onSave={(changed) => { saveMany("guests", changed); setSheet(null); toast(changed.length ? `${assignTable.nombre} actualizada` : "Sin cambios"); }}
         />
+      )}
+      {sheet?.kind === "trip" && (
+        <TripForm config={config} onClose={() => setSheet(null)} onSave={(c) => { saveConfig(c); setSheet(null); toast("Viaje guardado"); }} />
       )}
       {sheet?.kind === "bulkTables" && (
         <BulkTablesSheet

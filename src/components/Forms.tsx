@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from "react";
 import {
-  BUDGET_CATS, RSVP, SERVICES, SIDES, STAGES, VSTATE, num, seats, tableSort,
-  type Col, type Config, type Expense, type Guest, type Row, type RowInput, type Rsvp, type Table, type Task, type Vendor, type VendorState,
+  BUDGET_CATS, HONEY_TYPES, RSVP, SERVICES, SIDES, STAGES, VSTATE, num, seats, tableSort,
+  type Col, type Config, type Expense, type Guest, type Row, type RowInput, type HoneyItem, type Rsvp, type ScheduleItem, type Table, type Task, type Vendor, type VendorState,
 } from "@/lib/catalog";
 
 type Draft = Record<string, string | number | boolean>;
@@ -86,6 +86,15 @@ export function ItemForm({ col, item, tables = [], guests = [], onSave, onDelete
       const t: Omit<Task, "id"> = { titulo: s(d.titulo), etapa: s(d.etapa) || STAGES[0], fecha: s(d.fecha), responsable: s(d.responsable), hecho: !!d.hecho, notas: s(d.notas) };
       if (!t.titulo) err = "Escribe la tarea.";
       data = t;
+    } else if (col === "schedule") {
+      const e: Omit<ScheduleItem, "id"> = { hora: s(d.hora), titulo: s(d.titulo), lugar: s(d.lugar), responsable: s(d.responsable), notas: s(d.notas) };
+      if (!e.titulo) err = "Escribe qué pasa a esa hora.";
+      else if (!e.hora) err = "Pon la hora.";
+      data = e;
+    } else if (col === "honeymoon") {
+      const h: Omit<HoneyItem, "id"> = { tipo: s(d.tipo) || HONEY_TYPES[0], titulo: s(d.titulo), fecha: s(d.fecha), costo: num(d.costo), reservado: !!d.reservado, confirmacion: s(d.confirmacion), notas: s(d.notas) };
+      if (!h.titulo) err = "Escribe qué es (vuelo, hotel, actividad…).";
+      data = h;
     } else if (col === "tables") {
       const t: Omit<Table, "id"> = { nombre: s(d.nombre), capacidad: Math.max(1, Math.round(num(d.capacidad)) || 10), notas: s(d.notas) };
       if (!t.nombre) err = "Escribe el nombre de la mesa.";
@@ -102,7 +111,8 @@ export function ItemForm({ col, item, tables = [], guests = [], onSave, onDelete
   const titles: Record<Col, [string, string]> = {
     guests: ["Nuevo invitado", "Editar invitado"], budget: ["Nuevo gasto", "Editar gasto"],
     tasks: ["Nueva tarea", "Editar tarea"], vendors: ["Nuevo proveedor", "Editar proveedor"],
-    tables: ["Nueva mesa", "Editar mesa"],
+    tables: ["Nueva mesa", "Editar mesa"], schedule: ["Nuevo momento", "Editar momento"],
+    honeymoon: ["Nuevo pendiente del viaje", "Editar pendiente del viaje"],
   };
 
   return (
@@ -159,6 +169,32 @@ export function ItemForm({ col, item, tables = [], guests = [], onSave, onDelete
           <Field label="Notas" id="f_notas"><textarea {...bind("notas")} /></Field>
         </>
       )}
+      {col === "schedule" && (
+        <>
+          <div className="two">
+            <Field label="Hora" id="f_hora"><input {...bind("hora")} type="time" /></Field>
+            <Field label="Lugar" id="f_lugar"><input {...bind("lugar")} placeholder="Ej. Jardín" /></Field>
+          </div>
+          <Field label="¿Qué pasa?" id="f_titulo"><input {...bind("titulo")} autoComplete="off" placeholder="Ej. Primer baile" /></Field>
+          <Field label="Responsable" id="f_responsable"><input {...bind("responsable")} placeholder="Ej. DJ, coordinadora, padrino" /></Field>
+          <Field label="Notas (canción, quién habla, qué llevar…)" id="f_notas"><textarea {...bind("notas")} /></Field>
+        </>
+      )}
+      {col === "honeymoon" && (
+        <>
+          <div className="two">
+            <Field label="Tipo" id="f_tipo"><select {...bind("tipo")} value={String(d.tipo || HONEY_TYPES[0])}>{HONEY_TYPES.map((o) => <option key={o}>{o}</option>)}</select></Field>
+            <Field label="Fecha" id="f_fecha"><input {...bind("fecha")} type="date" /></Field>
+          </div>
+          <Field label="¿Qué es?" id="f_titulo"><input {...bind("titulo")} autoComplete="off" placeholder="Ej. Vuelo CDMX – Cancún" /></Field>
+          <div className="two">
+            <Field label="Costo ($)" id="f_costo"><input {...bind("costo")} value={d.costo ? String(d.costo) : ""} inputMode="decimal" /></Field>
+            <Field label="Confirmación / folio" id="f_confirmacion"><input {...bind("confirmacion")} autoComplete="off" /></Field>
+          </div>
+          <label className="toggle"><input type="checkbox" id="f_reservado" checked={!!d.reservado} onChange={(e) => setD((p) => ({ ...p, reservado: e.target.checked }))} /> Ya está reservado o listo</label>
+          <Field label="Notas" id="f_notas"><textarea {...bind("notas")} /></Field>
+        </>
+      )}
       {col === "tables" && (
         <>
           <div className="two">
@@ -212,7 +248,7 @@ export function SettingsForm({ config, onSave, onClose }: { config: Config; onSa
       title="Datos de la boda"
       error=""
       onClose={onClose}
-      onSave={() => onSave({ nombres: s(d.nombres), fecha: s(d.fecha), hora: s(d.hora), lugar: s(d.lugar), presupuesto: num(d.presupuesto) })}
+      onSave={() => onSave({ ...config, nombres: s(d.nombres), fecha: s(d.fecha), hora: s(d.hora), lugar: s(d.lugar), presupuesto: num(d.presupuesto) })}
     >
       <Field label="Nombres de la pareja" id="f_nombres"><input {...bind("nombres")} placeholder="Ej. Ana & Luis" autoComplete="off" /></Field>
       <div className="two">
@@ -222,6 +258,29 @@ export function SettingsForm({ config, onSave, onClose }: { config: Config; onSa
       <Field label="Lugar" id="f_lugar"><input {...bind("lugar")} placeholder="Salón, ciudad" /></Field>
       <Field label="Presupuesto total ($ MXN)" id="f_presupuesto"><input {...bind("presupuesto")} value={d.presupuesto ? String(d.presupuesto) : ""} inputMode="decimal" /></Field>
       <p className="note">Los cambios se guardan en la nube y tu pareja los ve en su teléfono en unos segundos.</p>
+    </Sheet>
+  );
+}
+
+export function TripForm({ config, onSave, onClose }: { config: Config; onSave: (c: Config) => void; onClose: () => void }) {
+  const { d, bind } = useDraft({ ...config } as Draft);
+  const [error, setError] = useState("");
+  return (
+    <Sheet
+      title="Datos del viaje"
+      error={error}
+      onClose={onClose}
+      onSave={() => {
+        if (d.lunaSalida && d.lunaRegreso && String(d.lunaRegreso) < String(d.lunaSalida)) return setError("El regreso no puede ser antes de la salida.");
+        onSave({ ...config, lunaDestino: s(d.lunaDestino), lunaSalida: s(d.lunaSalida), lunaRegreso: s(d.lunaRegreso), lunaPresupuesto: num(d.lunaPresupuesto) });
+      }}
+    >
+      <Field label="Destino" id="f_lunaDestino"><input {...bind("lunaDestino")} placeholder="Ej. Tulum, Quintana Roo" autoComplete="off" /></Field>
+      <div className="two">
+        <Field label="Salida" id="f_lunaSalida"><input {...bind("lunaSalida")} type="date" /></Field>
+        <Field label="Regreso" id="f_lunaRegreso"><input {...bind("lunaRegreso")} type="date" /></Field>
+      </div>
+      <Field label="Presupuesto del viaje ($ MXN)" id="f_lunaPresupuesto"><input {...bind("lunaPresupuesto")} value={d.lunaPresupuesto ? String(d.lunaPresupuesto) : ""} inputMode="decimal" /></Field>
     </Sheet>
   );
 }

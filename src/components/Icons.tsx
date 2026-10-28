@@ -50,6 +50,20 @@ const paths = {
     </>
   ),
   logout: <path d="M9 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h3M16 17l5-5-5-5M21 12H9" />,
+  clock: (
+    <>
+      <circle cx="12" cy="12" r="8.5" />
+      <path d="M12 7.5V12l3 2" />
+    </>
+  ),
+  plane: <path d="M10.5 13.5L3 11l1.5-1.5 7.5.5 4-4.5a2 2 0 0 1 3 3L14.5 13l.5 7.5L13.5 22 11 14.5 7.5 18H5l.5-2.5z" />,
+  more: (
+    <>
+      <circle cx="5" cy="12" r="1.6" fill="currentColor" />
+      <circle cx="12" cy="12" r="1.6" fill="currentColor" />
+      <circle cx="19" cy="12" r="1.6" fill="currentColor" />
+    </>
+  ),
   check: <path d="M5 12.5l4.5 4.5L19 7.5" strokeWidth="3" />,
   plus: <path d="M12 5v14M5 12h14" strokeWidth="2.2" />,
   settings: (

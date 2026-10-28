@@ -7,11 +7,13 @@ App para planear la boda desde el teléfono, compartida en pareja: los dos entra
 - **Inicio**: cuenta regresiva, confirmados, gasto previsto vs pagado, avance de tareas y próximos pendientes.
 - **Invitados**: invitaciones con acompañantes, de quién son (novia / novio / ambos), mesa, teléfono, notas y RSVP. Búsqueda y filtros.
 - **Mesas**: crea varias mesas de un jalón, sienta a los invitados con casillas y ve en cada mesa cuántos lugares quedan (avisa si una se pasa). Lista de quién falta por sentar.
+- **Programa del día**: el minuto a minuto de la boda en línea de tiempo (incluye un programa típico para empezar). El día de la boda marca lo que está pasando y lo que sigue.
+- **Luna de miel**: destino, fechas, noches y cuenta regresiva; pendientes del viaje (vuelos, hotel, documentos, maleta) con costo, folio y presupuesto.
 - **Presupuesto**: gastos por categoría con estimado, costo real y pagado, contra tu meta total.
 - **Tareas**: checklist por etapa con fecha límite y responsable; incluye 33 tareas sugeridas.
 - **Proveedores**: contacto, servicio, cotización y estado (cotizando / apartado / contratado / descartado).
 
-Se adapta al teléfono (pestañas abajo) y a la computadora (menú lateral y rejillas). Tiene tema claro, oscuro o automático (botón junto al engrane).
+Se adapta al teléfono (pestañas abajo y menú "Más") y a la computadora (menú lateral y rejillas). Tiene tema claro, oscuro o automático (botón junto al engrane).
 
 Los cambios de uno aparecen en el teléfono del otro en unos segundos (la app se sincroniza cada 8 s y al volver a abrirla).
 
