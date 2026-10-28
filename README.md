@@ -5,7 +5,8 @@ App para planear la boda desde el teléfono, compartida en pareja: los dos entra
 ## Secciones
 
 - **Inicio**: cuenta regresiva, confirmados, gasto previsto vs pagado, avance de tareas y próximos pendientes.
-- **Invitados**: invitaciones con acompañantes, de quién son (novia / novio / ambos), mesa, teléfono, notas y RSVP. Búsqueda, filtros y **Descargar Excel** (lista completa, acomodo por mesa y resumen).
+- **Invitados**: invitaciones con acompañantes, de quién son (novia / novio / ambos), mesa, teléfono, notas y RSVP. Búsqueda, filtros, **Seleccionar** para eliminar varios a la vez y **Descargar Excel** (lista completa, acomodo por mesa y resumen).
+- **Confirmación de invitados**: cada invitado tiene su link personal (`/confirmar/<código>`) para responder sin contraseña: si va, cuántas personas y un mensaje. Se copia o se envía por WhatsApp desde su ficha, y la respuesta aparece sola en la app.
 - **Mesas**: crea varias mesas de una vez, sienta a los invitados con casillas y ve en cada mesa cuántos lugares quedan (avisa si una se pasa). Lista de quién falta por sentar.
 - **Programa del día**: el minuto a minuto de la boda en línea de tiempo (incluye un programa típico para empezar). El día de la boda marca lo que está pasando y lo que sigue.
 - **Luna de miel**: destino, fechas, noches y cuenta regresiva; pendientes del viaje (vuelos, hotel, documentos, maleta) con costo, folio y presupuesto.

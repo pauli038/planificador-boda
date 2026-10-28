@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import {
-  BUDGET_CATS, HONEY_TYPES, RSVP, SERVICES, SIDES, STAGES, VSTATE, num, seats, tableSort,
+  BUDGET_CATS, HONEY_TYPES, RSVP, SERVICES, SIDES, STAGES, VSTATE, fmtDate, newCode, num, seats, tableSort,
   type Col, type Config, type Expense, type Guest, type Row, type RowInput, type HoneyItem, type Rsvp, type ScheduleItem, type Table, type Task, type Vendor, type VendorState,
 } from "@/lib/catalog";
 
@@ -75,7 +75,16 @@ export function ItemForm({ col, item, tables = [], guests = [], onSave, onDelete
     let data: RowInput;
     let err = "";
     if (col === "guests") {
-      const g: Omit<Guest, "id"> = { nombre: s(d.nombre), rsvp: (d.rsvp as Rsvp) || "pendiente", lado: s(d.lado) || "Ambos", acomp: Math.max(0, Math.round(num(d.num_acomp))), mesa: s(d.mesa), telefono: s(d.telefono), notas: s(d.notas) };
+      const acomp = Math.max(0, Math.round(num(d.num_acomp)));
+      const rsvp = (d.rsvp as Rsvp) || "pendiente";
+      const g: Omit<Guest, "id"> = {
+        nombre: s(d.nombre), rsvp, lado: s(d.lado) || "Ambos", acomp, mesa: s(d.mesa), telefono: s(d.telefono), notas: s(d.notas),
+        // Se conservan el link y lo que respondió el invitado
+        codigo: s(d.codigo) || newCode(),
+        asistentes: rsvp === "si" ? Math.min(acomp + 1, Math.max(1, Math.round(num(d.asistentes)) || acomp + 1)) : 0,
+        mensaje: s(d.mensaje),
+        ...(d.respondio ? { respondio: Number(d.respondio) } : {}),
+      };
       if (!g.nombre) err = "Escribe el nombre del invitado.";
       data = g;
     } else if (col === "budget") {
@@ -142,7 +151,21 @@ export function ItemForm({ col, item, tables = [], guests = [], onSave, onDelete
             </Field>
             <Field label="Teléfono" id="f_telefono"><input {...bind("telefono")} type="tel" /></Field>
           </div>
+          {d.rsvp === "si" && Math.round(num(d.num_acomp)) > 0 && (
+            <Field label="¿Cuántos van? (de los invitados)" id="f_asistentes">
+              <select {...bind("asistentes")} value={String(Math.min(Math.round(num(d.asistentes)) || 99, Math.round(num(d.num_acomp)) + 1))}>
+                {Array.from({ length: Math.round(num(d.num_acomp)) + 1 }, (_, i) => i + 1).map((n) => <option key={n} value={n}>{n} {n === 1 ? "persona" : "personas"}</option>)}
+              </select>
+            </Field>
+          )}
           <Field label="Notas (alergias, niños, etc.)" id="f_notas"><textarea {...bind("notas")} /></Field>
+          {d.mensaje && (
+            <div className="guest-msg">
+              <h3>Mensaje del invitado{d.respondio ? ` · ${fmtDate(new Date(Number(d.respondio)).toISOString().slice(0, 10))}` : ""}</h3>
+              <p>{String(d.mensaje)}</p>
+            </div>
+          )}
+          {edit && <InviteLink guest={{ ...(item as Guest), nombre: s(d.nombre) || (item as Guest).nombre, telefono: s(d.telefono) }} />}
         </>
       )}
       {col === "budget" && (
@@ -282,5 +305,46 @@ export function TripForm({ config, onSave, onClose }: { config: Config; onSave: 
       </div>
       <Field label="Presupuesto del viaje (₡)" id="f_lunaPresupuesto"><input {...bind("lunaPresupuesto")} value={d.lunaPresupuesto ? String(d.lunaPresupuesto) : ""} inputMode="decimal" /></Field>
     </Sheet>
+  );
+}
+
+/** Teléfono para WhatsApp: si son 8 dígitos se asume Costa Rica (+506). */
+function waNumber(tel: string) {
+  const digits = tel.replace(/\D/g, "");
+  if (digits.length === 8) return "506" + digits;
+  return digits.length >= 10 ? digits : "";
+}
+
+function InviteLink({ guest }: { guest: Guest }) {
+  const [copied, setCopied] = useState(false);
+  if (!guest.codigo) {
+    return <p className="note">Guarda este invitado para generar su link de confirmación.</p>;
+  }
+  const link = `${window.location.origin}/confirmar/${guest.codigo}`;
+  const text = `¡Hola ${guest.nombre}! Nos encantaría que nos acompañes en nuestra boda. Confirma tu asistencia aquí: ${link}`;
+  const wa = waNumber(guest.telefono || "");
+  const waHref = `https://wa.me/${wa}?text=${encodeURIComponent(text)}`;
+
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(link);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      const el = document.getElementById("f_link") as HTMLInputElement | null;
+      el?.select();
+    }
+  }
+
+  return (
+    <div className="invite-link">
+      <h3>Link para que confirme</h3>
+      <input id="f_link" readOnly value={link} onFocus={(e) => e.target.select()} aria-label="Link de confirmación" />
+      <div className="row">
+        <button type="button" className="btn ghost" onClick={copy}>{copied ? "Copiado" : "Copiar link"}</button>
+        <a className="btn wa" href={waHref} target="_blank" rel="noopener noreferrer">Enviar por WhatsApp</a>
+      </div>
+      {!wa && <p className="note" style={{ margin: 0 }}>Sin teléfono: WhatsApp te dejará elegir a quién mandarlo.</p>}
+    </div>
   );
 }

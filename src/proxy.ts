@@ -4,6 +4,8 @@ import { COOKIE, verifyToken } from "@/lib/session";
 export async function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
   if (pathname === "/login" || pathname === "/api/login") return NextResponse.next();
+  // Página pública para que cada invitado confirme con su link personal
+  if (pathname.startsWith("/confirmar/") || pathname.startsWith("/api/rsvp/")) return NextResponse.next();
 
   if (await verifyToken(req.cookies.get(COOKIE)?.value)) return NextResponse.next();
 

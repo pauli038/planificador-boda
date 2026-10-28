@@ -7,7 +7,7 @@ import { HoneymoonView, ScheduleView } from "./Extras";
 import { AssignSheet, BulkTablesSheet, SeatingView, occupancy } from "./Seating";
 import {
   RSVP, STAGES, SUGGESTED_HONEY, SUGGESTED_SCHEDULE, SUGGESTED_TASKS, VSTATE,
-  budgetStats, daysUntil, expenseTotal, fmtDate, guestStats, money, num, seats, taskSort, taskStats, todayISO, uid,
+  budgetStats, daysUntil, expenseTotal, fmtDate, guestStats, money, num, seats, taskSort, taskStats, todayISO, uid, newCode,
   type Col, type Config, type Data, type Expense, type Guest, type HoneyItem, type ScheduleItem, type Row, type RowInput, type Rsvp, type Table, type Task, type Vendor, type VendorState,
 } from "@/lib/catalog";
 
@@ -51,6 +51,10 @@ export default function Planner() {
   const [vFilter, setVFilter] = useState("todos");
   const [theme, setTheme] = useState<Theme>("system");
   const [moreOpen, setMoreOpen] = useState(false);
+  const [selecting, setSelecting] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [confirmDel, setConfirmDel] = useState(false);
+  const backfilled = useRef(false);
   const pending = useRef(0);
 
   useEffect(() => {
@@ -160,6 +164,25 @@ export default function Planner() {
     await send("/api/items/tasks", "POST", rows);
     toast("Checklist cargado");
   }
+
+  function deleteGuests(ids: string[]) {
+    if (!ids.length) return;
+    const gone = new Set(ids);
+    setData((d) => ({ ...d, guests: d.guests.filter((g) => !gone.has(g.id)) }));
+    send("/api/items/guests", "DELETE", { ids });
+    setSelecting(false);
+    setSelected(new Set());
+    setConfirmDel(false);
+    toast(ids.length === 1 ? "Invitado eliminado" : `${ids.length} invitados eliminados`);
+  }
+
+  // Los invitados creados antes de los links de confirmación reciben su código una sola vez
+  useEffect(() => {
+    if (!loaded || backfilled.current) return;
+    backfilled.current = true;
+    const missing = data.guests.filter((g) => !g.codigo).map((g) => ({ ...g, codigo: newCode() }));
+    if (missing.length) saveMany("guests", missing);
+  }, [loaded, data.guests, saveMany]);
 
   async function seedSchedule() {
     const rows: ScheduleItem[] = SUGGESTED_SCHEDULE.map(([hora, titulo, lugar], i) => ({ id: uid() + i, hora, titulo, lugar, responsable: "", notas: "", creado: Date.now() + i }));
@@ -323,6 +346,7 @@ export default function Planner() {
           <div className="row">
             <span className="pill acc">{gs.total} personas</span>
             {guests.length > 0 && <a className="chip chip-link" href="/api/export/guests" download>Descargar Excel</a>}
+            {guests.length > 0 && !selecting && <button className="chip" onClick={() => { setSelecting(true); setSelected(new Set()); }}>Seleccionar</button>}
           </div>
         </div>
         <div className="stats">
@@ -337,15 +361,47 @@ export default function Planner() {
             {chips.map(([k, l]) => <button key={k} className={`chip ${gFilter === k ? "on" : ""}`} onClick={() => setGFilter(k)}>{l}</button>)}
           </div>
         </div>
+        {selecting && (
+          <div className="select-bar">
+            <span><b>{selected.size}</b> {selected.size === 1 ? "seleccionado" : "seleccionados"}</span>
+            <div className="row">
+              <button className="chip" onClick={() => setSelected(selected.size === list.length ? new Set() : new Set(list.map((g) => g.id)))}>
+                {selected.size === list.length && list.length > 0 ? "Quitar todos" : "Todos"}
+              </button>
+              <button className="chip" onClick={() => { setSelecting(false); setConfirmDel(false); }}>Cancelar</button>
+              <button
+                className={`btn danger ${confirmDel ? "armed" : ""}`}
+                disabled={!selected.size}
+                onClick={() => (confirmDel ? deleteGuests([...selected]) : setConfirmDel(true))}
+              >
+                {confirmDel ? `¿Eliminar ${selected.size}?` : "Eliminar"}
+              </button>
+            </div>
+          </div>
+        )}
         {guests.length === 0 ? empty("Agrega a tu primer invitado", "Cuenta cada invitación con sus acompañantes y marca quién confirma.") :
           list.length ? (
             <div className="list">
               {list.map((g: Guest) => {
                 const [l, cls] = RSVP[(g.rsvp || "pendiente") as Rsvp];
-                const sub = [g.lado, g.acomp > 0 ? `+${g.acomp} acomp.` : "", g.mesa ? (tableName[g.mesa] ?? `Mesa ${g.mesa}`) : ""].filter(Boolean).join(" · ");
-                return (
+                const fewer = g.rsvp === "si" && seats(g) < 1 + (Number(g.acomp) || 0);
+                const sub = [
+                  g.lado,
+                  g.acomp > 0 ? (fewer ? `van ${seats(g)} de ${1 + Number(g.acomp)}` : `+${g.acomp} acomp.`) : "",
+                  g.mesa ? (tableName[g.mesa] ?? `Mesa ${g.mesa}`) : "",
+                  g.respondio ? "respondió por link" : "",
+                ].filter(Boolean).join(" · ");
+                const on = selected.has(g.id);
+                return selecting ? (
+                  <label key={g.id} className="item">
+                    <input type="checkbox" className="pick" checked={on} onChange={() => { setConfirmDel(false); setSelected((p) => { const n = new Set(p); if (on) n.delete(g.id); else n.add(g.id); return n; }); }} />
+                    <div className="main"><span className="t">{g.nombre}</span>{sub && <span className="s">{sub}</span>}</div>
+                    <span className={`pill ${cls}`}>{l}</span>
+                  </label>
+                ) : (
                   <button key={g.id} className="item" onClick={() => openItem("guests", g.id)}>
                     <div className="main"><span className="t">{g.nombre}</span>{sub && <span className="s">{sub}</span>}</div>
+                    {g.mensaje && <span className="msg-dot" title="Dejó un mensaje" aria-label="Dejó un mensaje">✉</span>}
                     <span className={`pill ${cls}`}>{l}</span>
                   </button>
                 );

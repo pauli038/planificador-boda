@@ -19,3 +19,19 @@ export async function POST(req: Request, ctx: { params: Promise<{ col: string }>
     return dbError(e);
   }
 }
+
+
+// Borrar varios registros a la vez (p. ej. invitados seleccionados).
+export async function DELETE(req: Request, ctx: { params: Promise<{ col: string }> }) {
+  const { col } = await ctx.params;
+  const body = await req.json().catch(() => null);
+  const ids = Array.isArray(body?.ids) ? body.ids.filter((x: unknown) => typeof x === "string" && /^[\w-]{1,64}$/.test(x)) : [];
+  if (!isCollection(col) || !ids.length || ids.length > 500) return NextResponse.json({ error: "Datos inválidos" }, { status: 400 });
+  try {
+    await ensureSchema();
+    await sql`DELETE FROM items WHERE col = ${col} AND id IN ${sql(ids)}`;
+    return NextResponse.json({ ok: true, count: ids.length });
+  } catch (e) {
+    return dbError(e);
+  }
+}

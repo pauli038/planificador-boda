@@ -253,3 +253,34 @@ body { margin: 0; }
 .trip-count b { font-family: var(--f-display); font-size: 1.5rem; color: var(--blush); }
 .group-sum { font-size: .85rem; color: var(--muted); font-variant-numeric: tabular-nums; }
 .chip-link { text-decoration: none; color: var(--ink); font-weight: 600; }
+
+/* Página de confirmación para invitados */
+.rsvp-page { min-height: 100dvh; display: grid; place-items: center; padding-block: 32px; }
+.invite { width: 100%; max-width: 460px; background: var(--surface); border: 1px solid var(--line); border-radius: 24px; padding: 32px 24px; display: grid; gap: 14px; text-align: center; box-shadow: var(--shadow); }
+.invite h1 { font-family: var(--f-display); font-weight: 600; font-size: 2.3rem; line-height: 1.1; letter-spacing: -.01em; margin: 0; text-wrap: balance; overflow-wrap: anywhere; }
+.invite-kicker { margin: 0; font-size: .8rem; letter-spacing: .14em; text-transform: uppercase; color: var(--blush); font-weight: 700; }
+.invite-when { display: grid; gap: 2px; color: var(--muted); }
+.invite-when span:first-child { color: var(--ink); font-weight: 600; }
+.invite-rule { width: 56px; border: 0; border-top: 2px solid var(--blush); margin: 6px auto; }
+.invite-hello { margin: 0; font-size: 1.1rem; }
+.invite-text { margin: 0; color: var(--muted); }
+.invite .form { text-align: left; }
+.choice { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.choice button { border: 1.5px solid var(--line); background: var(--bg); border-radius: 14px; padding: 14px 8px; font-weight: 700; }
+.choice button.on { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
+.invite-done { display: grid; gap: 8px; justify-items: center; padding: 18px; background: var(--accent-soft); border-radius: 16px; }
+.invite-done strong { font-family: var(--f-display); font-size: 1.4rem; font-weight: 600; }
+.invite-done .btn { margin-top: 6px; }
+
+/* Invitados: selección, mensajes y link */
+.select-bar { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 70px); z-index: 5; display: flex; flex-wrap: wrap; gap: 8px; justify-content: space-between; align-items: center; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 10px 12px; box-shadow: var(--shadow); }
+.select-bar .btn { padding: 8px 14px; }
+.list label.item { cursor: pointer; }
+.pick { width: 22px; height: 22px; accent-color: var(--accent); flex: none; }
+.msg-dot { color: var(--blush); font-size: 1rem; }
+.guest-msg { background: var(--blush-soft); border-radius: 12px; padding: 12px 14px; display: grid; gap: 6px; }
+.guest-msg p { margin: 0; white-space: pre-line; overflow-wrap: anywhere; }
+.invite-link { border-top: 1px solid var(--line); padding-top: 14px; display: grid; gap: 8px; }
+.invite-link input { width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--sunk); font-size: .9rem; color: var(--muted); }
+.invite-link .row .btn { flex: 1; text-align: center; text-decoration: none; }
+.btn.wa { background: #1f8f55; color: #fff; }

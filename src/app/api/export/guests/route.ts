@@ -17,7 +17,8 @@ function styleSheet(ws: ExcelJS.Worksheet) {
   if (ws.rowCount > 1) ws.autoFilter = { from: { row: 1, column: 1 }, to: { row: 1, column: ws.columnCount } };
 }
 
-export async function GET() {
+export async function GET(req: Request) {
+  const origin = new URL(req.url).origin;
   try {
     await ensureSchema();
     const rows = await sql<{ col: string; id: string; data: Record<string, unknown> }[]>`
@@ -45,10 +46,16 @@ export async function GET() {
       { header: "Mesa", key: "mesa", width: 14 },
       { header: "Teléfono", key: "telefono", width: 16 },
       { header: "Notas", key: "notas", width: 40 },
+      { header: "Mensaje del invitado", key: "mensaje", width: 40 },
+      { header: "Link de confirmación", key: "link", width: 48 },
     ];
     for (const g of guests) {
-      ws.addRow({ nombre: g.nombre, lado: g.lado, acomp: Number(g.acomp) || 0, personas: seats(g), rsvp: estado(g), mesa: mesa(g), telefono: g.telefono, notas: g.notas });
+      ws.addRow({
+        nombre: g.nombre, lado: g.lado, acomp: Number(g.acomp) || 0, personas: seats(g), rsvp: estado(g), mesa: mesa(g),
+        telefono: g.telefono, notas: g.notas, mensaje: g.mensaje || "", link: g.codigo ? `${origin}/confirmar/${g.codigo}` : "",
+      });
     }
+    ws.getColumn("mensaje").alignment = { wrapText: true, vertical: "top" };
     ws.getColumn("notas").alignment = { wrapText: true, vertical: "top" };
     styleSheet(ws);
 

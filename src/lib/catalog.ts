@@ -1,4 +1,14 @@
-export type Guest = { id: string; nombre: string; rsvp: Rsvp; lado: string; acomp: number; mesa: string; telefono: string; notas: string; creado?: number };
+export type Guest = {
+  id: string; nombre: string; rsvp: Rsvp; lado: string; acomp: number; mesa: string; telefono: string; notas: string; creado?: number;
+  /** Código del link personal para confirmar (/confirmar/<codigo>). */
+  codigo?: string;
+  /** Personas que confirmaron (puede ser menos que las invitadas). */
+  asistentes?: number;
+  /** Mensaje que dejó el invitado al confirmar. */
+  mensaje?: string;
+  /** Momento en que el invitado respondió desde su link. */
+  respondio?: number;
+};
 export type Expense = { id: string; concepto: string; categoria: string; estimado: number; real: number; pagado: number; notas: string; creado?: number };
 export type Task = { id: string; titulo: string; etapa: string; fecha: string; responsable: string; hecho: boolean; notas: string; creado?: number };
 export type Vendor = { id: string; nombre: string; servicio: string; estado: VendorState; contacto: string; telefono: string; email: string; costo: number; notas: string; creado?: number };
@@ -68,11 +78,11 @@ export const daysUntil = (iso?: string) => {
 };
 
 export function guestStats(guests: Guest[]) {
-  const persons = (g: Guest) => 1 + (num(g.acomp) || 0);
-  const total = guests.reduce((s, g) => s + persons(g), 0);
-  const si = guests.filter((g) => g.rsvp === "si").reduce((s, g) => s + persons(g), 0);
-  const no = guests.filter((g) => g.rsvp === "no").reduce((s, g) => s + persons(g), 0);
-  return { total, si, no, pend: total - si - no, invit: guests.length };
+  const total = guests.reduce((s, g) => s + invitedSeats(g), 0);
+  const si = guests.filter((g) => g.rsvp === "si").reduce((s, g) => s + seats(g), 0);
+  const pend = guests.filter((g) => g.rsvp !== "si" && g.rsvp !== "no").reduce((s, g) => s + invitedSeats(g), 0);
+  // Los lugares que no se usan de una invitación confirmada cuentan como "no asisten"
+  return { total, si, pend, no: total - si - pend, invit: guests.length };
 }
 
 export const expenseTotal = (b: Expense) => num(b.real) || num(b.estimado);
@@ -100,7 +110,18 @@ export function taskSort(a: Task, b: Task) {
 export type RowInput = Omit<Guest, "id"> | Omit<Expense, "id"> | Omit<Task, "id"> | Omit<Vendor, "id"> | Omit<Table, "id"> | Omit<ScheduleItem, "id"> | Omit<HoneyItem, "id">;
 
 /** Personas que ocupa una invitación (titular + acompañantes). */
-export const seats = (g: Guest) => 1 + (num(g.acomp) || 0);
+export const invitedSeats = (g: Guest) => 1 + (num(g.acomp) || 0);
+
+/** Personas que ocupa una invitación: las que confirmaron, o todas las invitadas si aún no responden. */
+export const seats = (g: Guest) =>
+  g.rsvp === "si" && num(g.asistentes) > 0 ? Math.min(num(g.asistentes), invitedSeats(g)) : invitedSeats(g);
+
+const CODE_CHARS = "abcdefghijkmnpqrstuvwxyz23456789";
+/** Código aleatorio para el link de confirmación (sin letras que se confundan: l, o, 0, 1). */
+export function newCode(len = 10) {
+  const bytes = crypto.getRandomValues(new Uint8Array(len));
+  return Array.from(bytes, (b) => CODE_CHARS[b % CODE_CHARS.length]).join("");
+}
 
 /** Número de mesa natural para ordenar "Mesa 2" antes que "Mesa 10". */
 export const tableSort = (a: Table, b: Table) => String(a.nombre).localeCompare(String(b.nombre), "es", { numeric: true });
