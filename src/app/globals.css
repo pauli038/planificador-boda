@@ -252,3 +252,4 @@ body { margin: 0; }
 .trip-count { margin-top: 6px; font-size: .95rem; }
 .trip-count b { font-family: var(--f-display); font-size: 1.5rem; color: var(--blush); }
 .group-sum { font-size: .85rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.chip-link { text-decoration: none; color: var(--ink); font-weight: 600; }

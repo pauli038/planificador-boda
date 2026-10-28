@@ -318,7 +318,13 @@ export default function Planner() {
     const chips: [string, string][] = [["todos", "Todos"], ["pendiente", "Pendientes"], ["si", "Confirmados"], ["no", "No asisten"], ["Novia", "Novia"], ["Novio", "Novio"], ["Ambos", "Ambos"]];
     return (
       <>
-        <div className="spread"><h2>Invitados</h2><span className="pill acc">{gs.total} personas</span></div>
+        <div className="spread">
+          <h2>Invitados</h2>
+          <div className="row">
+            <span className="pill acc">{gs.total} personas</span>
+            {guests.length > 0 && <a className="chip chip-link" href="/api/export/guests" download>Descargar Excel</a>}
+          </div>
+        </div>
         <div className="stats">
           <div className="stat"><small>Invitaciones</small><b>{gs.invit}</b></div>
           <div className="stat"><small>Confirmados</small><b style={{ color: "var(--ok)" }}>{gs.si}</b></div>
