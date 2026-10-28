@@ -1,0 +1,9 @@
+{
+  "name": "Nuestra Boda",
+  "short_name": "Boda",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#f7f6f2",
+  "theme_color": "#3f6b5a",
+  "lang": "es"
+}
