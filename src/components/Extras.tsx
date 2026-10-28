@@ -3,14 +3,14 @@
 import { useEffect, useState } from "react";
 import { Icon } from "./Icons";
 import {
-  HONEY_TYPES, daysUntil, fmtDate, money, num, scheduleSort, todayISO,
+  HONEY_TYPES, LOCALE, daysUntil, fmtDate, money, num, scheduleSort, todayISO,
   type Config, type HoneyItem, type ScheduleItem,
 } from "@/lib/catalog";
 
 const fmtHora = (h: string) => {
   if (!h) return "";
   const [H, M] = h.split(":").map(Number);
-  return new Date(2000, 0, 1, H, M).toLocaleTimeString("es-MX", { hour: "numeric", minute: "2-digit" });
+  return new Date(2000, 0, 1, H, M).toLocaleTimeString(LOCALE, { hour: "numeric", minute: "2-digit" });
 };
 
 /** Hora actual "HH:MM", refrescada cada minuto (solo se usa el día de la boda). */

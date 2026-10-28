@@ -35,10 +35,18 @@ export const SUGGESTED_TASKS: [string, string][] = [
   ["Después de la boda", "Enviar agradecimientos"], ["Después de la boda", "Recoger fotos y video"],
 ];
 
+export const LOCALE = "es-CR";
+
 export const money = (n: unknown) =>
-  new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN", maximumFractionDigits: 0 }).format(Number(n) || 0);
+  new Intl.NumberFormat(LOCALE, { style: "currency", currency: "CRC", maximumFractionDigits: 0 }).format(Number(n) || 0);
+
+/** Lee montos como se escriben en Costa Rica: "₡1 250 000", "1.250.000", "1,250,000" o "1250000,50". */
 export const num = (v: unknown) => {
-  const n = parseFloat(String(v ?? "").replace(/[^0-9.\-]/g, ""));
+  if (typeof v === "number") return isFinite(v) ? v : 0;
+  let t = String(v ?? "").replace(/[^0-9.,\-]/g, "");
+  const dec = t.match(/[.,](\d{1,2})$/);
+  t = t.slice(0, dec ? -dec[0].length : undefined).replace(/[.,]/g, "") + (dec ? "." + dec[1] : "");
+  const n = parseFloat(t);
   return isFinite(n) ? n : 0;
 };
 export const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
@@ -49,7 +57,7 @@ export const todayISO = () => {
 export const fmtDate = (iso?: string, opts: Intl.DateTimeFormatOptions = { day: "numeric", month: "short", year: "numeric" }) => {
   if (!iso) return "";
   const [y, m, d] = iso.split("-").map(Number);
-  return new Date(y, m - 1, d).toLocaleDateString("es-MX", opts);
+  return new Date(y, m - 1, d).toLocaleDateString(LOCALE, opts);
 };
 export const daysUntil = (iso?: string) => {
   if (!iso) return null;

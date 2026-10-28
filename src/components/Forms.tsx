@@ -150,10 +150,10 @@ export function ItemForm({ col, item, tables = [], guests = [], onSave, onDelete
           <Field label="Concepto" id="f_concepto"><input {...bind("concepto")} autoComplete="off" placeholder="Ej. Anticipo del salón" /></Field>
           <Field label="Categoría" id="f_categoria"><select {...bind("categoria")} value={String(d.categoria || BUDGET_CATS[0])}>{BUDGET_CATS.map((o) => <option key={o}>{o}</option>)}</select></Field>
           <div className="two">
-            <Field label="Estimado ($)" id="f_estimado"><input {...bind("estimado")} value={d.estimado ? String(d.estimado) : ""} inputMode="decimal" /></Field>
-            <Field label="Costo real ($)" id="f_real"><input {...bind("real")} value={d.real ? String(d.real) : ""} inputMode="decimal" /></Field>
+            <Field label="Estimado (₡)" id="f_estimado"><input {...bind("estimado")} value={d.estimado ? String(d.estimado) : ""} inputMode="decimal" /></Field>
+            <Field label="Costo real (₡)" id="f_real"><input {...bind("real")} value={d.real ? String(d.real) : ""} inputMode="decimal" /></Field>
           </div>
-          <Field label="Pagado hasta hoy ($)" id="f_pagado"><input {...bind("pagado")} value={d.pagado ? String(d.pagado) : ""} inputMode="decimal" /></Field>
+          <Field label="Pagado hasta hoy (₡)" id="f_pagado"><input {...bind("pagado")} value={d.pagado ? String(d.pagado) : ""} inputMode="decimal" /></Field>
           <Field label="Notas" id="f_notas"><textarea {...bind("notas")} /></Field>
         </>
       )}
@@ -186,9 +186,9 @@ export function ItemForm({ col, item, tables = [], guests = [], onSave, onDelete
             <Field label="Tipo" id="f_tipo"><select {...bind("tipo")} value={String(d.tipo || HONEY_TYPES[0])}>{HONEY_TYPES.map((o) => <option key={o}>{o}</option>)}</select></Field>
             <Field label="Fecha" id="f_fecha"><input {...bind("fecha")} type="date" /></Field>
           </div>
-          <Field label="¿Qué es?" id="f_titulo"><input {...bind("titulo")} autoComplete="off" placeholder="Ej. Vuelo CDMX – Cancún" /></Field>
+          <Field label="¿Qué es?" id="f_titulo"><input {...bind("titulo")} autoComplete="off" placeholder="Ej. Vuelo San José – Cancún" /></Field>
           <div className="two">
-            <Field label="Costo ($)" id="f_costo"><input {...bind("costo")} value={d.costo ? String(d.costo) : ""} inputMode="decimal" /></Field>
+            <Field label="Costo (₡)" id="f_costo"><input {...bind("costo")} value={d.costo ? String(d.costo) : ""} inputMode="decimal" /></Field>
             <Field label="Confirmación / folio" id="f_confirmacion"><input {...bind("confirmacion")} autoComplete="off" /></Field>
           </div>
           <label className="toggle"><input type="checkbox" id="f_reservado" checked={!!d.reservado} onChange={(e) => setD((p) => ({ ...p, reservado: e.target.checked }))} /> Ya está reservado o listo</label>
@@ -225,7 +225,7 @@ export function ItemForm({ col, item, tables = [], guests = [], onSave, onDelete
           </div>
           <div className="two">
             <Field label="Correo" id="f_email"><input {...bind("email")} type="email" /></Field>
-            <Field label="Cotización ($)" id="f_costo"><input {...bind("costo")} value={d.costo ? String(d.costo) : ""} inputMode="decimal" /></Field>
+            <Field label="Cotización (₡)" id="f_costo"><input {...bind("costo")} value={d.costo ? String(d.costo) : ""} inputMode="decimal" /></Field>
           </div>
           <Field label="Notas (qué incluye, fechas de pago…)" id="f_notas"><textarea {...bind("notas")} /></Field>
           {(d.telefono || d.email) && (
@@ -256,7 +256,7 @@ export function SettingsForm({ config, onSave, onClose }: { config: Config; onSa
         <Field label="Hora" id="f_hora"><input {...bind("hora")} type="time" /></Field>
       </div>
       <Field label="Lugar" id="f_lugar"><input {...bind("lugar")} placeholder="Salón, ciudad" /></Field>
-      <Field label="Presupuesto total ($ MXN)" id="f_presupuesto"><input {...bind("presupuesto")} value={d.presupuesto ? String(d.presupuesto) : ""} inputMode="decimal" /></Field>
+      <Field label="Presupuesto total (₡)" id="f_presupuesto"><input {...bind("presupuesto")} value={d.presupuesto ? String(d.presupuesto) : ""} inputMode="decimal" /></Field>
       <p className="note">Los cambios se guardan en la nube y tu pareja los ve en su teléfono en unos segundos.</p>
     </Sheet>
   );
@@ -275,12 +275,12 @@ export function TripForm({ config, onSave, onClose }: { config: Config; onSave: 
         onSave({ ...config, lunaDestino: s(d.lunaDestino), lunaSalida: s(d.lunaSalida), lunaRegreso: s(d.lunaRegreso), lunaPresupuesto: num(d.lunaPresupuesto) });
       }}
     >
-      <Field label="Destino" id="f_lunaDestino"><input {...bind("lunaDestino")} placeholder="Ej. Tulum, Quintana Roo" autoComplete="off" /></Field>
+      <Field label="Destino" id="f_lunaDestino"><input {...bind("lunaDestino")} placeholder="Ej. Playa Conchal, Guanacaste" autoComplete="off" /></Field>
       <div className="two">
         <Field label="Salida" id="f_lunaSalida"><input {...bind("lunaSalida")} type="date" /></Field>
         <Field label="Regreso" id="f_lunaRegreso"><input {...bind("lunaRegreso")} type="date" /></Field>
       </div>
-      <Field label="Presupuesto del viaje ($ MXN)" id="f_lunaPresupuesto"><input {...bind("lunaPresupuesto")} value={d.lunaPresupuesto ? String(d.lunaPresupuesto) : ""} inputMode="decimal" /></Field>
+      <Field label="Presupuesto del viaje (₡)" id="f_lunaPresupuesto"><input {...bind("lunaPresupuesto")} value={d.lunaPresupuesto ? String(d.lunaPresupuesto) : ""} inputMode="decimal" /></Field>
     </Sheet>
   );
 }
