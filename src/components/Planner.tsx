@@ -41,6 +41,7 @@ function applyTheme(t: Theme) {
 export default function Planner() {
   const [data, setData] = useState<Data>(EMPTY);
   const [loaded, setLoaded] = useState(false);
+  const [loadError, setLoadError] = useState("");
   const [tab, setTab] = useState<Tab>("inicio");
   const [sheet, setSheet] = useState<Sheet>(null);
   const [toastMsg, setToastMsg] = useState("");
@@ -67,18 +68,27 @@ export default function Planner() {
   const toast = useCallback((m: string) => setToastMsg(m), []);
   useEffect(() => {
     if (!toastMsg) return;
-    const t = setTimeout(() => setToastMsg(""), 2400);
+    const t = setTimeout(() => setToastMsg(""), toastMsg.startsWith("No se") ? 7000 : 2400);
     return () => clearTimeout(t);
   }, [toastMsg]);
 
   /* ---------- Sincronización con el servidor ---------- */
+  // Cada escritura sube este contador: una lectura que salió antes de una escritura
+  // trae datos viejos y no debe pisar lo que se acaba de guardar.
+  const writes = useRef(0);
+
   const refresh = useCallback(async () => {
+    const startedAt = writes.current;
     const res = await fetch("/api/data", { cache: "no-store" }).catch(() => null);
     if (res?.status === 401) return void (window.location.href = "/login");
-    if (!res?.ok) return;
+    if (!res?.ok) {
+      const body = await res?.json().catch(() => null);
+      setLoadError(body?.error || "No hay conexión con el servidor.");
+      return;
+    }
     const next = (await res.json()) as Data;
-    // No pisar cambios locales que aún se están guardando
-    if (pending.current === 0) setData(next);
+    if (pending.current === 0 && startedAt === writes.current) setData(next);
+    setLoadError("");
     setLoaded(true);
   }, []);
 
@@ -96,12 +106,16 @@ export default function Planner() {
 
   const send = useCallback(async (url: string, method: string, body?: unknown) => {
     pending.current++;
+    writes.current++;
     try {
       const res = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: body === undefined ? undefined : JSON.stringify(body) });
       if (res.status === 401) return void (window.location.href = "/login");
-      if (!res.ok) throw new Error();
+      if (!res.ok) {
+        const err = await res.json().catch(() => null);
+        toast(`No se guardó: ${err?.error || `error ${res.status}`}`);
+      }
     } catch {
-      toast("No se pudo guardar. Revisa tu conexión e intenta de nuevo.");
+      toast("No se guardó: no hay conexión. Revisa tu internet e intenta de nuevo.");
     } finally {
       pending.current--;
       if (pending.current === 0) refresh();
@@ -538,7 +552,9 @@ export default function Planner() {
 
         <main className="content">
           <div className="view">
-            {loaded ? views[tab]() : <p className="note">Cargando sus datos…</p>}
+            {loaded ? views[tab]() : loadError ? (
+              <div className="empty"><strong>No se pudieron cargar los datos</strong><span>{loadError}</span><button className="btn" onClick={refresh}>Reintentar</button></div>
+            ) : <p className="note">Cargando sus datos…</p>}
             {loaded && tab === "inicio" && (
               <button className="chip mobile-only" style={{ justifySelf: "center" }} onClick={logout}>Cerrar sesión</button>
             )}
