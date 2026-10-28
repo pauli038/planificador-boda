@@ -3,22 +3,38 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Icon, type IconName } from "./Icons";
 import { ItemForm, SettingsForm } from "./Forms";
+import { AssignSheet, BulkTablesSheet, SeatingView, occupancy } from "./Seating";
 import {
   RSVP, STAGES, SUGGESTED_TASKS, VSTATE,
-  budgetStats, daysUntil, expenseTotal, fmtDate, guestStats, money, num, taskSort, taskStats, todayISO, uid,
-  type Col, type Config, type Data, type Expense, type Guest, type Row, type RowInput, type Rsvp, type Task, type Vendor, type VendorState,
+  budgetStats, daysUntil, expenseTotal, fmtDate, guestStats, money, num, seats, taskSort, taskStats, todayISO, uid,
+  type Col, type Config, type Data, type Expense, type Guest, type Row, type RowInput, type Rsvp, type Table, type Task, type Vendor, type VendorState,
 } from "@/lib/catalog";
 
-type Tab = "inicio" | "invitados" | "presupuesto" | "tareas" | "proveedores";
-const TABS: [Tab, string, IconName][] = [
-  ["inicio", "Inicio", "home"], ["invitados", "Invitados", "guests"], ["presupuesto", "Presupuesto", "budget"],
-  ["tareas", "Tareas", "tasks"], ["proveedores", "Proveedores", "vendors"],
+type Tab = "inicio" | "invitados" | "mesas" | "presupuesto" | "tareas" | "proveedores";
+// [clave, nombre, nombre corto para la barra del teléfono, ícono]
+const TABS: [Tab, string, string, IconName][] = [
+  ["inicio", "Inicio", "Inicio", "home"], ["invitados", "Invitados", "Invitados", "guests"], ["mesas", "Mesas", "Mesas", "tables"],
+  ["presupuesto", "Presupuesto", "Gastos", "budget"], ["tareas", "Tareas", "Tareas", "tasks"], ["proveedores", "Proveedores", "Proveed.", "vendors"],
 ];
-const TAB_COL: Partial<Record<Tab, Col>> = { invitados: "guests", presupuesto: "budget", tareas: "tasks", proveedores: "vendors" };
-const EMPTY: Data = { config: {}, guests: [], budget: [], tasks: [], vendors: [] };
+const TAB_COL: Partial<Record<Tab, Col>> = { invitados: "guests", mesas: "tables", presupuesto: "budget", tareas: "tasks", proveedores: "vendors" };
+const EMPTY: Data = { config: {}, guests: [], budget: [], tasks: [], vendors: [], tables: [] };
 const POLL_MS = 8000;
 
-type Sheet = { kind: "item"; col: Col; id?: string } | { kind: "settings" } | null;
+type Sheet = { kind: "item"; col: Col; id?: string } | { kind: "settings" } | { kind: "assign"; id: string } | { kind: "bulkTables" } | null;
+
+type Theme = "system" | "light" | "dark";
+const THEMES: Record<Theme, [string, IconName, Theme]> = {
+  system: ["Tema: automático", "auto", "light"],
+  light: ["Tema: claro", "sun", "dark"],
+  dark: ["Tema: oscuro", "moon", "system"],
+};
+
+function applyTheme(t: Theme) {
+  const root = document.documentElement;
+  if (t === "system") delete root.dataset.theme;
+  else root.dataset.theme = t;
+  try { localStorage.setItem("boda-theme", t); } catch {}
+}
 
 export default function Planner() {
   const [data, setData] = useState<Data>(EMPTY);
@@ -30,7 +46,20 @@ export default function Planner() {
   const [gQuery, setGQuery] = useState("");
   const [tFilter, setTFilter] = useState("pendientes");
   const [vFilter, setVFilter] = useState("todos");
+  const [theme, setTheme] = useState<Theme>("system");
   const pending = useRef(0);
+
+  useEffect(() => {
+    let t: string | null = null;
+    try { t = localStorage.getItem("boda-theme"); } catch {}
+    if (t === "light" || t === "dark") setTheme(t);
+  }, []);
+
+  function cycleTheme() {
+    const next = THEMES[theme][2];
+    setTheme(next);
+    applyTheme(next);
+  }
 
   const toast = useCallback((m: string) => setToastMsg(m), []);
   useEffect(() => {
@@ -89,6 +118,18 @@ export default function Planner() {
     return send(`/api/items/${col}/${id}`, "DELETE");
   }, [send]);
 
+  const saveMany = useCallback((col: Col, rows: Row[]) => {
+    if (!rows.length) return Promise.resolve();
+    const byId = new Map(rows.map((r) => [r.id, r]));
+    setData((d) => {
+      const list = d[col] as Row[];
+      const kept = list.map((x) => byId.get(x.id) ?? x);
+      const added = rows.filter((r) => !list.some((x) => x.id === r.id));
+      return { ...d, [col]: [...kept, ...added] };
+    });
+    return send(`/api/items/${col}`, "POST", rows);
+  }, [send]);
+
   const saveConfig = useCallback((config: Config) => {
     setData((d) => ({ ...d, config }));
     return send("/api/config", "PUT", config);
@@ -118,7 +159,11 @@ export default function Planner() {
   }
 
   /* ---------- Vistas ---------- */
-  const { config, guests, budget, tasks, vendors } = data;
+  const { config, guests, budget, tasks, vendors, tables } = data;
+  const seatInfo = useMemo(() => occupancy(tables, guests), [tables, guests]);
+  const seatedCount = Object.values(seatInfo.byTable).flat().reduce((n, g) => n + seats(g), 0);
+  const unseatedCount = seatInfo.unseated.reduce((n, g) => n + seats(g), 0);
+  const tableName = useMemo(() => Object.fromEntries(tables.map((t) => [t.id, t.nombre])), [tables]);
   const gs = useMemo(() => guestStats(guests), [guests]);
   const bs = useMemo(() => budgetStats(budget, config), [budget, config]);
   const ts = useMemo(() => taskStats(tasks), [tasks]);
@@ -194,6 +239,7 @@ export default function Planner() {
             <div className="bar"><i style={{ width: `${ts.pct}%` }} /></div>
           </button>
         </div>
+        <div className="cols">
         <section className="card">
           <div className="spread"><h3>Siguientes pendientes</h3><button className="chip" onClick={() => go("tareas")}>Ver todas</button></div>
           {upcoming.length ? (
@@ -209,7 +255,14 @@ export default function Planner() {
               <span key={k} className={`pill ${VSTATE[k][1]}`}>{VSTATE[k][0]}: {vendors.filter((v) => (v.estado || "cotizando") === k).length}</span>
             ))}
           </div>
+          <div className="spread" style={{ marginTop: 6 }}><h3>Mesas</h3><button className="chip" onClick={() => go("mesas")}>Acomodar</button></div>
+          <p className="note" style={{ margin: 0 }}>
+            {tables.length
+              ? `${tables.length} ${tables.length === 1 ? "mesa" : "mesas"} · ${seatedCount} personas sentadas · ${unseatedCount} sin mesa`
+              : "Aún no hay mesas. Créalas en la sección Mesas."}
+          </p>
         </section>
+        </div>
       </>
     );
   }
@@ -217,7 +270,7 @@ export default function Planner() {
   function vInvitados() {
     const q = gQuery.trim().toLowerCase();
     let list = guests.filter((g) => gFilter === "todos" || (g.rsvp || "pendiente") === gFilter || g.lado === gFilter);
-    if (q) list = list.filter((g) => [g.nombre, g.mesa, g.notas, g.telefono].join(" ").toLowerCase().includes(q));
+    if (q) list = list.filter((g) => [g.nombre, tableName[g.mesa] ?? g.mesa, g.notas, g.telefono].join(" ").toLowerCase().includes(q));
     list = [...list].sort((a, b) => String(a.nombre).localeCompare(String(b.nombre), "es"));
     const chips: [string, string][] = [["todos", "Todos"], ["pendiente", "Pendientes"], ["si", "Confirmados"], ["no", "No asisten"], ["Novia", "Novia"], ["Novio", "Novio"], ["Ambos", "Ambos"]];
     return (
@@ -240,7 +293,7 @@ export default function Planner() {
             <div className="list">
               {list.map((g: Guest) => {
                 const [l, cls] = RSVP[(g.rsvp || "pendiente") as Rsvp];
-                const sub = [g.lado, g.acomp > 0 ? `+${g.acomp} acomp.` : "", g.mesa ? `Mesa ${g.mesa}` : ""].filter(Boolean).join(" · ");
+                const sub = [g.lado, g.acomp > 0 ? `+${g.acomp} acomp.` : "", g.mesa ? (tableName[g.mesa] ?? `Mesa ${g.mesa}`) : ""].filter(Boolean).join(" · ");
                 return (
                   <button key={g.id} className="item" onClick={() => openItem("guests", g.id)}>
                     <div className="main"><span className="t">{g.nombre}</span>{sub && <span className="s">{sub}</span>}</div>
@@ -372,47 +425,72 @@ export default function Planner() {
     );
   }
 
-  const views: Record<Tab, () => React.ReactNode> = { inicio: vInicio, invitados: vInvitados, presupuesto: vPresupuesto, tareas: vTareas, proveedores: vProveedores };
+  const vMesas = () => (
+    <SeatingView
+      tables={tables}
+      guests={guests}
+      onEditTable={(id) => openItem("tables", id)}
+      onAssign={(id) => setSheet({ kind: "assign", id })}
+      onEditGuest={(id) => openItem("guests", id)}
+      onBulk={() => setSheet({ kind: "bulkTables" })}
+      onAddTable={() => openItem("tables")}
+    />
+  );
+
+  function deleteItem(col: Col, id: string) {
+    removeItem(col, id);
+    // Quien estaba en una mesa borrada queda sin mesa
+    if (col === "tables") saveMany("guests", guests.filter((g) => g.mesa === id).map((g) => ({ ...g, mesa: "" })));
+  }
+
+  const views: Record<Tab, () => React.ReactNode> = { inicio: vInicio, invitados: vInvitados, mesas: vMesas, presupuesto: vPresupuesto, tareas: vTareas, proveedores: vProveedores };
   const col = TAB_COL[tab];
   const sub = d === null ? "Configura la fecha para ver la cuenta regresiva" : d > 0 ? `Faltan ${d} ${d === 1 ? "día" : "días"} · ${fmtDate(config.fecha)}` : d === 0 ? "¡Hoy es el día!" : `Casados el ${fmtDate(config.fecha)}`;
   const editing = sheet?.kind === "item" && sheet.id ? (data[sheet.col] as Row[]).find((x) => x.id === sheet.id) : undefined;
 
+  const assignTable = sheet?.kind === "assign" ? tables.find((t) => t.id === sheet.id) : undefined;
+  const [themeLabel, themeIcon] = THEMES[theme];
+
   return (
     <>
       <header className="top">
-        <div className="wrap">
+        <div className="wrap wide">
           <div className="brand">
             <h1>{config.nombres || "Nuestra boda"}</h1>
             <p>{sub}</p>
           </div>
           <div className="hdr-actions">
-            <button className="icon-btn" onClick={() => setSheet({ kind: "settings" })} aria-label="Datos de la boda"><Icon name="settings" /></button>
+            <button className="icon-btn" onClick={cycleTheme} aria-label={`${themeLabel}. Cambiar tema`} title={themeLabel}><Icon name={themeIcon} /></button>
+            <button className="icon-btn" onClick={() => setSheet({ kind: "settings" })} aria-label="Datos de la boda" title="Datos de la boda"><Icon name="settings" /></button>
+            <button className="icon-btn desktop-only" onClick={logout} aria-label="Cerrar sesión" title="Cerrar sesión"><Icon name="logout" /></button>
           </div>
         </div>
       </header>
 
-      <main className="wrap">
-        <div className="view">
-          {loaded ? views[tab]() : <p className="note">Cargando sus datos…</p>}
-          {loaded && tab === "inicio" && (
-            <button className="chip" style={{ justifySelf: "center" }} onClick={logout}>Cerrar sesión</button>
-          )}
-        </div>
-      </main>
+      <div className="shell">
+        <nav className="tabs" aria-label="Secciones">
+          <div className="in">
+            {TABS.map(([k, l, short, i]) => (
+              <button key={k} onClick={() => go(k)} aria-current={k === tab ? "page" : undefined} aria-label={l}>
+                <Icon name={i} /><span className="long">{l}</span><span className="short" aria-hidden="true">{short}</span>
+              </button>
+            ))}
+          </div>
+        </nav>
+
+        <main className="content">
+          <div className="view">
+            {loaded ? views[tab]() : <p className="note">Cargando sus datos…</p>}
+            {loaded && tab === "inicio" && (
+              <button className="chip mobile-only" style={{ justifySelf: "center" }} onClick={logout}>Cerrar sesión</button>
+            )}
+          </div>
+        </main>
+      </div>
 
       {col && loaded && (
-        <button className="fab" onClick={() => openItem(col)} aria-label="Agregar"><Icon name="plus" /></button>
+        <button className="fab" onClick={() => openItem(col)} aria-label="Agregar" title="Agregar"><Icon name="plus" /></button>
       )}
-
-      <nav className="tabs" aria-label="Secciones">
-        <div className="in">
-          {TABS.map(([k, l, i]) => (
-            <button key={k} onClick={() => go(k)} aria-current={k === tab ? "page" : undefined}>
-              <Icon name={i} /><span>{l}</span>
-            </button>
-          ))}
-        </div>
-      </nav>
 
       {sheet?.kind === "settings" && (
         <SettingsForm config={config} onClose={() => setSheet(null)} onSave={(c) => { saveConfig(c); setSheet(null); toast("Datos guardados"); }} />
@@ -422,9 +500,27 @@ export default function Planner() {
           key={sheet.id || "new"}
           col={sheet.col}
           item={editing}
+          tables={tables}
+          guests={guests}
           onClose={() => setSheet(null)}
           onSave={(row) => { saveItem(sheet.col, sheet.id || uid(), row); setSheet(null); toast(sheet.id ? "Cambios guardados" : "Agregado"); }}
-          onDelete={sheet.id ? () => { removeItem(sheet.col, sheet.id!); setSheet(null); toast("Eliminado"); } : undefined}
+          onDelete={sheet.id ? () => { deleteItem(sheet.col, sheet.id!); setSheet(null); toast("Eliminado"); } : undefined}
+        />
+      )}
+      {assignTable && (
+        <AssignSheet
+          table={assignTable}
+          tables={tables}
+          guests={guests}
+          onClose={() => setSheet(null)}
+          onSave={(changed) => { saveMany("guests", changed); setSheet(null); toast(changed.length ? `${assignTable.nombre} actualizada` : "Sin cambios"); }}
+        />
+      )}
+      {sheet?.kind === "bulkTables" && (
+        <BulkTablesSheet
+          tables={tables}
+          onClose={() => setSheet(null)}
+          onSave={(rows) => { saveMany("tables", rows.map((r, i) => ({ ...r, id: uid() + i }) as Table)); setSheet(null); toast(`${rows.length} mesas creadas`); }}
         />
       )}
       {toastMsg && <div className="toast" role="status">{toastMsg}</div>}

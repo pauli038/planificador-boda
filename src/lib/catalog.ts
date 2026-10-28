@@ -2,14 +2,15 @@ export type Guest = { id: string; nombre: string; rsvp: Rsvp; lado: string; acom
 export type Expense = { id: string; concepto: string; categoria: string; estimado: number; real: number; pagado: number; notas: string; creado?: number };
 export type Task = { id: string; titulo: string; etapa: string; fecha: string; responsable: string; hecho: boolean; notas: string; creado?: number };
 export type Vendor = { id: string; nombre: string; servicio: string; estado: VendorState; contacto: string; telefono: string; email: string; costo: number; notas: string; creado?: number };
+export type Table = { id: string; nombre: string; capacidad: number; notas: string; creado?: number };
 export type Config = { nombres?: string; fecha?: string; hora?: string; lugar?: string; presupuesto?: number };
 
 export type Rsvp = "pendiente" | "si" | "no";
 export type VendorState = "cotizando" | "apartado" | "contratado" | "descartado";
 
-export type Data = { config: Config; guests: Guest[]; budget: Expense[]; tasks: Task[]; vendors: Vendor[] };
-export type Col = "guests" | "budget" | "tasks" | "vendors";
-export type Row = Guest | Expense | Task | Vendor;
+export type Data = { config: Config; guests: Guest[]; budget: Expense[]; tasks: Task[]; vendors: Vendor[]; tables: Table[] };
+export type Col = "guests" | "budget" | "tasks" | "vendors" | "tables";
+export type Row = Guest | Expense | Task | Vendor | Table;
 
 export const STAGES = ["12+ meses antes", "9–12 meses antes", "6–9 meses antes", "3–6 meses antes", "1–3 meses antes", "Último mes", "Semana de la boda", "Después de la boda"];
 export const BUDGET_CATS = ["Recepción y banquete", "Ceremonia", "Vestido y atuendo", "Fotografía y video", "Música", "Flores y decoración", "Invitaciones", "Anillos", "Pastel", "Bebidas", "Transporte", "Belleza", "Luna de miel", "Otros"];
@@ -83,4 +84,10 @@ export function taskSort(a: Task, b: Task) {
   );
 }
 
-export type RowInput = Omit<Guest, "id"> | Omit<Expense, "id"> | Omit<Task, "id"> | Omit<Vendor, "id">;
+export type RowInput = Omit<Guest, "id"> | Omit<Expense, "id"> | Omit<Task, "id"> | Omit<Vendor, "id"> | Omit<Table, "id">;
+
+/** Personas que ocupa una invitación (titular + acompañantes). */
+export const seats = (g: Guest) => 1 + (num(g.acomp) || 0);
+
+/** Número de mesa natural para ordenar "Mesa 2" antes que "Mesa 10". */
+export const tableSort = (a: Table, b: Table) => String(a.nombre).localeCompare(String(b.nombre), "es", { numeric: true });

@@ -6,7 +6,7 @@ const url = process.env.DATABASE_URL || "";
 // El pooler de transacciones de Supabase (puerto 6543) no admite prepared statements.
 export const sql = postgres(url, { max: 1, prepare: !/:6543\//.test(url) });
 
-export const COLLECTIONS = ["guests", "budget", "tasks", "vendors"] as const;
+export const COLLECTIONS = ["guests", "budget", "tasks", "vendors", "tables"] as const;
 export type Collection = (typeof COLLECTIONS)[number];
 export const isCollection = (c: string): c is Collection => (COLLECTIONS as readonly string[]).includes(c);
 

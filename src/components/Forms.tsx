@@ -2,13 +2,13 @@
 
 import { useEffect, useState } from "react";
 import {
-  BUDGET_CATS, RSVP, SERVICES, SIDES, STAGES, VSTATE, num,
-  type Col, type Config, type Expense, type Guest, type Row, type RowInput, type Rsvp, type Task, type Vendor, type VendorState,
+  BUDGET_CATS, RSVP, SERVICES, SIDES, STAGES, VSTATE, num, seats, tableSort,
+  type Col, type Config, type Expense, type Guest, type Row, type RowInput, type Rsvp, type Table, type Task, type Vendor, type VendorState,
 } from "@/lib/catalog";
 
 type Draft = Record<string, string | number | boolean>;
 
-function Sheet({ title, children, error, onSave, onDelete, onClose }: {
+export function Sheet({ title, children, error, onSave, onDelete, onClose }: {
   title: string; children: React.ReactNode; error: string;
   onSave: () => void; onDelete?: () => void; onClose: () => void;
 }) {
@@ -40,7 +40,7 @@ function Sheet({ title, children, error, onSave, onDelete, onClose }: {
   );
 }
 
-function Field({ label, id, children }: { label: string; id: string; children: React.ReactNode }) {
+export function Field({ label, id, children }: { label: string; id: string; children: React.ReactNode }) {
   return (
     <div className="field">
       <label htmlFor={id}>{label}</label>
@@ -62,8 +62,9 @@ function useDraft(initial: Draft) {
 
 const s = (v: unknown) => String(v ?? "").trim();
 
-export function ItemForm({ col, item, onSave, onDelete, onClose }: {
-  col: Col; item?: Row; onSave: (data: RowInput) => void; onDelete?: () => void; onClose: () => void;
+export function ItemForm({ col, item, tables = [], guests = [], onSave, onDelete, onClose }: {
+  col: Col; item?: Row; tables?: Table[]; guests?: Guest[];
+  onSave: (data: RowInput) => void; onDelete?: () => void; onClose: () => void;
 }) {
   const it = (item ?? {}) as Draft;
   const { d, setD, bind } = useDraft({ ...it, num_acomp: (it.acomp as number) ?? 0 });
@@ -85,6 +86,10 @@ export function ItemForm({ col, item, onSave, onDelete, onClose }: {
       const t: Omit<Task, "id"> = { titulo: s(d.titulo), etapa: s(d.etapa) || STAGES[0], fecha: s(d.fecha), responsable: s(d.responsable), hecho: !!d.hecho, notas: s(d.notas) };
       if (!t.titulo) err = "Escribe la tarea.";
       data = t;
+    } else if (col === "tables") {
+      const t: Omit<Table, "id"> = { nombre: s(d.nombre), capacidad: Math.max(1, Math.round(num(d.capacidad)) || 10), notas: s(d.notas) };
+      if (!t.nombre) err = "Escribe el nombre de la mesa.";
+      data = t;
     } else {
       const v: Omit<Vendor, "id"> = { nombre: s(d.nombre), servicio: s(d.servicio) || SERVICES[0], estado: (d.estado as VendorState) || "cotizando", contacto: s(d.contacto), telefono: s(d.telefono), email: s(d.email), costo: num(d.costo), notas: s(d.notas) };
       if (!v.nombre) err = "Escribe el nombre del proveedor.";
@@ -97,6 +102,7 @@ export function ItemForm({ col, item, onSave, onDelete, onClose }: {
   const titles: Record<Col, [string, string]> = {
     guests: ["Nuevo invitado", "Editar invitado"], budget: ["Nuevo gasto", "Editar gasto"],
     tasks: ["Nueva tarea", "Editar tarea"], vendors: ["Nuevo proveedor", "Editar proveedor"],
+    tables: ["Nueva mesa", "Editar mesa"],
   };
 
   return (
@@ -117,7 +123,13 @@ export function ItemForm({ col, item, onSave, onDelete, onClose }: {
             <Field label="Acompañantes" id="f_num_acomp"><input {...bind("num_acomp")} type="number" min={0} inputMode="numeric" /></Field>
           </div>
           <div className="two">
-            <Field label="Mesa" id="f_mesa"><input {...bind("mesa")} inputMode="numeric" /></Field>
+            <Field label="Mesa" id="f_mesa">
+              <select {...bind("mesa")}>
+                <option value="">Sin mesa</option>
+                {[...tables].sort(tableSort).map((t) => <option key={t.id} value={t.id}>{t.nombre}</option>)}
+                {d.mesa && !tables.some((t) => t.id === d.mesa) && <option value={String(d.mesa)}>{String(d.mesa)}</option>}
+              </select>
+            </Field>
             <Field label="Teléfono" id="f_telefono"><input {...bind("telefono")} type="tel" /></Field>
           </div>
           <Field label="Notas (alergias, niños, etc.)" id="f_notas"><textarea {...bind("notas")} /></Field>
@@ -145,6 +157,23 @@ export function ItemForm({ col, item, onSave, onDelete, onClose }: {
           </div>
           <label className="toggle"><input type="checkbox" id="f_hecho" checked={!!d.hecho} onChange={(e) => setD((p) => ({ ...p, hecho: e.target.checked }))} /> Ya está hecha</label>
           <Field label="Notas" id="f_notas"><textarea {...bind("notas")} /></Field>
+        </>
+      )}
+      {col === "tables" && (
+        <>
+          <div className="two">
+            <Field label="Nombre" id="f_nombre"><input {...bind("nombre")} autoComplete="off" placeholder="Ej. Mesa 1, Principal" /></Field>
+            <Field label="Lugares" id="f_capacidad"><input {...bind("capacidad")} value={d.capacidad === undefined ? "10" : String(d.capacidad)} type="number" min={1} inputMode="numeric" /></Field>
+          </div>
+          <Field label="Notas (ubicación, quiénes van…)" id="f_notas"><textarea {...bind("notas")} /></Field>
+          {edit && (
+            <p className="note">
+              {(() => {
+                const at = guests.filter((g) => g.mesa === item!.id && g.rsvp !== "no");
+                return at.length ? `${at.reduce((n, g) => n + seats(g), 0)} personas sentadas. Al eliminar la mesa quedan sin mesa.` : "Aún no hay nadie en esta mesa.";
+              })()}
+            </p>
+          )}
         </>
       )}
       {col === "vendors" && (
